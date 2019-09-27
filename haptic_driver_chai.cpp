@@ -87,6 +87,8 @@ vector<string> DEVICE_GRIPPER_VELOCITY_KEYS;
 vector<string> DEVICE_SENSED_FORCE_KEYS;
 vector<string> DEVICE_SENSED_TORQUE_KEYS;
 
+const string HAPTIC_DEVICES_SWAP_KEY = "sai2::ChaiHapticDevice::swapDevices";
+
 // Declare variable for haptic device 0
 // Maximum stiffness, damping and force specifications
 VectorXd _max_stiffness_device0 = VectorXd::Zero(2);
@@ -315,6 +317,7 @@ int main() {
 	}
 	else if (Nb_device == 2)
 	{
+		redis_client.set(HAPTIC_DEVICES_SWAP_KEY, "0");
 		// set initial value to commanded forces
 		redis_client.setEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0],_commanded_force_device0);
 		redis_client.setEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0],_commanded_torque_device0);
@@ -391,7 +394,13 @@ int main() {
 
 		}
 		else if (Nb_device == 2)
-		{		
+		{	
+			if(stoi(redis_client.get(HAPTIC_DEVICES_SWAP_KEY)) == 1)
+			{
+				swap(hapticDevice0, hapticDevice1);
+				redis_client.set(HAPTIC_DEVICES_SWAP_KEY, "0");
+			}
+
 			//// Get haptic device and gripper position and velocity ////
 			hapticDevice0->getPosition(_current_position_device0_chai);
 			hapticDevice0->getRotation(_current_rotation_device0_chai);
