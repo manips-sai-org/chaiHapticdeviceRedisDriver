@@ -61,6 +61,15 @@ Correspond to the sensed force and torques of the device
 
 Are the commands to the device that need to be set to the redis database by the controller. They must respect the JSON formatting
 
+* sai2::ChaiHapticDevice::swapDevices
+
+Set this key to 1 each time you want to swap the haptic devices.
+From a terminal window
+```
+redis-cli
+set sai2::ChaiHapticDevice::swapDevices 1
+exit
+```
 
 # License:
 Currently pending licensing. PLEASE DO NOT DISTRIBUTE.
