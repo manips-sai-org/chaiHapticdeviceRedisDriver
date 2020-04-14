@@ -13,7 +13,7 @@
 
 #include <Eigen/Dense>
 #include <string>
-#include <chrono>
+// #include <chrono>
 
 #include <signal.h>
 
@@ -336,6 +336,43 @@ int main() {
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_FORCE_KEYS[1],_max_force_device1);
 	}
 
+	// prepare redis callback
+	redis_client.createReadCallback(0);
+
+	redis_client.addEigenToReadCallback(0, DEVICE_COMMANDED_FORCE_KEYS[0], _commanded_force_device0);
+	redis_client.addEigenToReadCallback(0, DEVICE_COMMANDED_TORQUE_KEYS[0], _commanded_torque_device0);
+	redis_client.addDoubleToReadCallback(0, DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0], _commanded_force_gripper0);
+
+	redis_client.createWriteCallback(0);
+
+	redis_client.addEigenToWriteCallback(0, DEVICE_POSITION_KEYS[0], _current_position_device0);
+	redis_client.addEigenToWriteCallback(0, DEVICE_ROTATION_KEYS[0], _current_rotation_device0);
+	redis_client.addEigenToWriteCallback(0, DEVICE_TRANS_VELOCITY_KEYS[0], _current_trans_velocity_device0);
+	redis_client.addEigenToWriteCallback(0, DEVICE_ROT_VELOCITY_KEYS[0], _current_rot_velocity_device0);
+	redis_client.addDoubleToWriteCallback(0, DEVICE_GRIPPER_POSITION_KEYS[0], _current_position_gripper_device0);
+	redis_client.addDoubleToWriteCallback(0, DEVICE_GRIPPER_VELOCITY_KEYS[0], _current_gripper_velocity_device0);
+
+	redis_client.addEigenToWriteCallback(0, DEVICE_SENSED_FORCE_KEYS[0], _sensed_force_device0);
+	redis_client.addEigenToWriteCallback(0, DEVICE_SENSED_TORQUE_KEYS[0], _sensed_torque_device0);
+
+	if(Nb_device == 2)
+	{
+		redis_client.addEigenToReadCallback(0, DEVICE_COMMANDED_FORCE_KEYS[1], _commanded_force_device1);
+		redis_client.addEigenToReadCallback(0, DEVICE_COMMANDED_TORQUE_KEYS[1], _commanded_torque_device1);
+		redis_client.addDoubleToReadCallback(0, DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1], _commanded_force_gripper1);
+
+		redis_client.addEigenToWriteCallback(0, DEVICE_POSITION_KEYS[1], _current_position_device1);
+		redis_client.addEigenToWriteCallback(0, DEVICE_ROTATION_KEYS[1], _current_rotation_device1);
+		redis_client.addEigenToWriteCallback(0, DEVICE_TRANS_VELOCITY_KEYS[1], _current_trans_velocity_device1);
+		redis_client.addEigenToWriteCallback(0, DEVICE_ROT_VELOCITY_KEYS[1], _current_rot_velocity_device1);
+		redis_client.addDoubleToWriteCallback(0, DEVICE_GRIPPER_POSITION_KEYS[1], _current_position_gripper_device1);
+		redis_client.addDoubleToWriteCallback(0, DEVICE_GRIPPER_VELOCITY_KEYS[1], _current_gripper_velocity_device1);
+
+		redis_client.addEigenToWriteCallback(0, DEVICE_SENSED_FORCE_KEYS[1], _sensed_force_device1);
+		redis_client.addEigenToWriteCallback(0, DEVICE_SENSED_TORQUE_KEYS[1], _sensed_torque_device1);
+
+	}
+
 	//// Create a timer ////
 	LoopTimer timer;
 	timer.initializeTimer();
@@ -353,6 +390,8 @@ int main() {
 		double time = timer.elapsedTime() - start_time;
 		dt = current_time - prev_time;
 
+		redis_client.executeReadCallback(0);
+
 		if (Nb_device == 1)
 		{
 			//// Get haptic device and gripper position and velocity ////
@@ -366,12 +405,12 @@ int main() {
 			_current_trans_velocity_device0 = convertChaiToEigenVector(_current_trans_velocity_device0_device_chai);
 			_current_rot_velocity_device0 = convertChaiToEigenVector(_current_rot_velocity_device0_device_chai);
 			//// Send haptic device and gripper position and velocity to Redis keys ////
-			redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
-			redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
-			redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
+			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
+			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
+			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
 
 			//// Get sensed force and torque from the haptic device ////
 			hapticDevice0->getForce(_sensed_force_device0_chai);
@@ -379,13 +418,14 @@ int main() {
 			_sensed_force_device0 = convertChaiToEigenVector(_sensed_force_device0_chai);
 			_sensed_torque_device0 = convertChaiToEigenVector(_sensed_torque_device0_chai);
 			//// Send sensed force to redis keys /////
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
 
 			//// Read commanded force feedback from Redis ////
-			_commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
-			_commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
-			_commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
+			// _commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
+			// _commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
+			// _commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
+			
 			_commanded_force_device0_chai = convertEigenToChaiVector(_commanded_force_device0);
 			_commanded_torque_device0_chai = convertEigenToChaiVector(_commanded_torque_device0);
 
@@ -423,19 +463,19 @@ int main() {
 			_current_rot_velocity_device1 = convertChaiToEigenVector(_current_rot_velocity_device1_device_chai);
 
 			//// Send haptic device and gripper position and velocity to Redis keys ////
-			redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
-			redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
-			redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
+			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
+			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
+			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
 
-			redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[1],_current_position_device1);
-			redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[1],_current_rotation_device1);
-			redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[1],_current_trans_velocity_device1);
-			redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[1],_current_rot_velocity_device1);
-			redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[1],to_string(_current_position_gripper_device1));
-			redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[1], to_string(_current_gripper_velocity_device1));
+			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[1],_current_position_device1);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[1],_current_rotation_device1);
+			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[1],_current_trans_velocity_device1);
+			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[1],_current_rot_velocity_device1);
+			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[1],to_string(_current_position_gripper_device1));
+			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[1], to_string(_current_gripper_velocity_device1));
 
 			//// Get sensed force and torque from the haptic device ////
 			hapticDevice0->getForce(_sensed_force_device0_chai);
@@ -449,21 +489,21 @@ int main() {
 			_sensed_torque_device1 = convertChaiToEigenVector(_sensed_torque_device1_chai);
 
 			//// Send sensed force to redis keys /////
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[1],_sensed_force_device1);
-			redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[1],_sensed_torque_device1);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[1],_sensed_force_device1);
+			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[1],_sensed_torque_device1);
 
 			//// Read commanded force feedback from Redis ////
-			_commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
-			_commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
-			_commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
+			// _commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
+			// _commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
+			// _commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
 			_commanded_force_device0_chai = convertEigenToChaiVector(_commanded_force_device0);
 			_commanded_torque_device0_chai = convertEigenToChaiVector(_commanded_torque_device0);
 
-			_commanded_force_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[1]);
-			_commanded_torque_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[1]);
-			_commanded_force_gripper1 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1]));
+			// _commanded_force_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[1]);
+			// _commanded_torque_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[1]);
+			// _commanded_force_gripper1 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1]));
 			_commanded_force_device1_chai = convertEigenToChaiVector(_commanded_force_device1);
 			_commanded_torque_device1_chai = convertEigenToChaiVector(_commanded_torque_device1);
 
@@ -472,6 +512,8 @@ int main() {
 			hapticDevice1->setForceAndTorqueAndGripperForce(_commanded_force_device1_chai,_commanded_torque_device1_chai, _commanded_force_gripper1);
 		
 		}
+
+		redis_client.executeWriteCallback(0);
 
 		prev_time = current_time;
 		counter++;

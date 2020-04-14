@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(chai_devices_redis_driver)
 
 # CMAKE OPTIONS
-# set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Debug)
+# set(CMAKE_BUILD_TYPE Release)
 # SET(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -69,4 +69,7 @@ set(chai_devices_redis_driver_LIBRARIES
 
 include_directories( ${chai_devices_redis_driver_INCLUDE_DIRS} )
 target_link_libraries(${PROJECT_NAME} ${chai_devices_redis_driver_LIBRARIES})
+
+ADD_SUBDIRECTORY(${PROJECT_SOURCE_DIR}/controllers)
+
 
