@@ -2,8 +2,8 @@
  * haptic_driver_chai.cpp
  *
  *      This driver handles any haptic device defined in chai3D. 1 to 2 devices can be managed by the driver.
- * 		The device data for the connected device are exchanged through redis keys. 
- * 
+ * 		The device data for the connected device are exchanged through redis keys.
+ *
  *      Author: Margot Vulliez
  */
 
@@ -99,7 +99,7 @@ Vector3d _commanded_force_device0 = Vector3d::Zero();
 Vector3d _commanded_torque_device0 = Vector3d::Zero();
 double _commanded_force_gripper0 = 0.0;
 // Haptic device current position and rotation
-Vector3d _current_position_device0 = Vector3d::Zero(); 
+Vector3d _current_position_device0 = Vector3d::Zero();
 Matrix3d _current_rotation_device0 = Matrix3d::Identity();
 double _current_position_gripper_device0 = 0.0;
 // Haptic device current velocity
@@ -129,7 +129,7 @@ Vector3d _commanded_force_device1 = Vector3d::Zero();
 Vector3d _commanded_torque_device1 = Vector3d::Zero();
 double _commanded_force_gripper1 = 0.0;
 // Haptic device current position and rotation
-Vector3d _current_position_device1 = Vector3d::Zero(); 
+Vector3d _current_position_device1 = Vector3d::Zero();
 Matrix3d _current_rotation_device1 = Matrix3d::Identity();
 double _current_position_gripper_device1 = 0.0;
 // Haptic device current velocity
@@ -152,7 +152,7 @@ cVector3d _sensed_torque_device1_chai;
 RedisClient redis_client;
 
 int main() {
-	
+
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
 	signal(SIGTERM, &sighandler);
@@ -161,7 +161,7 @@ int main() {
 	//// Create a handler ////
 	auto handler = new cHapticDeviceHandler();
 
- 	
+
 	//// Open an calibrate the connected devices ////
 	if (!handler->getDevice(hapticDevice0, 0))
 	{
@@ -169,7 +169,7 @@ int main() {
 		Nb_device = 0;
 	}
 	else
-	{	
+	{
 		if(!hapticDevice0->open())
 		{
 			cout << "could not open the first haptic device" << endl;
@@ -212,13 +212,13 @@ int main() {
 			// Sensed force and torque from the haptic device
 			DEVICE_SENSED_FORCE_KEYS.push_back("sai2::ChaiHapticDevice::device0::sensors::sensed_force");
 			DEVICE_SENSED_TORQUE_KEYS.push_back("sai2::ChaiHapticDevice::device0::sensors::sensed_torque");
-		
+
 			if (!handler->getDevice(hapticDevice1, 1))
 			{
 				cout << "No second haptic device found. " << endl;
 			}
 			else
-			{	
+			{
 				if(!hapticDevice1->open())
 				{
 					cout << "could not open the second haptic device" << endl;
@@ -244,7 +244,7 @@ int main() {
 
 					// Set force and torque feedback of the haptic device
 					DEVICE_COMMANDED_FORCE_KEYS.push_back("sai2::ChaiHapticDevice::device1::actuators::commanded_force");
-					DEVICE_COMMANDED_TORQUE_KEYS.push_back("sai2::ChaiHapticDevice::device1::actuators::commanded_torque");	
+					DEVICE_COMMANDED_TORQUE_KEYS.push_back("sai2::ChaiHapticDevice::device1::actuators::commanded_torque");
 					DEVICE_COMMANDED_GRIPPER_FORCE_KEYS.push_back("sai2::ChaiHapticDevice::device1::actuators::commanded_force_gripper");
 
 					// Haptic device current position and rotation
@@ -263,7 +263,7 @@ int main() {
 
 				}
 			}
-		}	
+		}
 	}
 
 	cout << "Number of device / " << Nb_device << endl;
@@ -277,7 +277,7 @@ int main() {
 			cDeltaDevice* tmp_device = static_cast<cDeltaDevice*>(hapticDevice0.get());
 			tmp_device->enableForces(true);
 		}
-		// Send Zero force feedback to the haptic devices	
+		// Send Zero force feedback to the haptic devices
 		hapticDevice0->setForceAndTorqueAndGripperForce(_commanded_force_device0_chai,_commanded_torque_device0_chai, _commanded_force_gripper0);
 	}
 	else if (Nb_device == 2)
@@ -293,7 +293,7 @@ int main() {
 			cDeltaDevice* tmp_device = static_cast<cDeltaDevice*>(hapticDevice1.get());
 			tmp_device->enableForces(true);
 		}
-		// Send Zero force feedback to the haptic devices	
+		// Send Zero force feedback to the haptic devices
 		hapticDevice0->setForceAndTorqueAndGripperForce(_commanded_force_device0_chai,_commanded_torque_device0_chai, _commanded_force_gripper0);
 		hapticDevice1->setForceAndTorqueAndGripperForce(_commanded_force_device1_chai,_commanded_torque_device1_chai, _commanded_force_gripper1);
 	}
@@ -313,7 +313,6 @@ int main() {
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_STIFFNESS_KEYS[0],_max_stiffness_device0);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_DAMPING_KEYS[0],_max_damping_device0);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_FORCE_KEYS[0],_max_force_device0);
-
 	}
 	else if (Nb_device == 2)
 	{
@@ -330,7 +329,7 @@ int main() {
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_STIFFNESS_KEYS[0],_max_stiffness_device0);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_DAMPING_KEYS[0],_max_damping_device0);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_FORCE_KEYS[0],_max_force_device0);
-		
+
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_STIFFNESS_KEYS[1],_max_stiffness_device1);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_DAMPING_KEYS[1],_max_damping_device1);
 		redis_client.setEigenMatrixJSON(DEVICE_MAX_FORCE_KEYS[1],_max_force_device1);
@@ -404,28 +403,14 @@ int main() {
 			_current_rotation_device0 = convertChaiToEigenMatrix(_current_rotation_device0_chai);
 			_current_trans_velocity_device0 = convertChaiToEigenVector(_current_trans_velocity_device0_device_chai);
 			_current_rot_velocity_device0 = convertChaiToEigenVector(_current_rot_velocity_device0_device_chai);
-			//// Send haptic device and gripper position and velocity to Redis keys ////
-			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
-			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
-			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
 
 			//// Get sensed force and torque from the haptic device ////
 			hapticDevice0->getForce(_sensed_force_device0_chai);
 			hapticDevice0->getTorque(_sensed_torque_device0_chai);
 			_sensed_force_device0 = convertChaiToEigenVector(_sensed_force_device0_chai);
 			_sensed_torque_device0 = convertChaiToEigenVector(_sensed_torque_device0_chai);
-			//// Send sensed force to redis keys /////
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
 
-			//// Read commanded force feedback from Redis ////
-			// _commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
-			// _commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
-			// _commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
-			
+			//// Read commanded force feedback ////
 			_commanded_force_device0_chai = convertEigenToChaiVector(_commanded_force_device0);
 			_commanded_torque_device0_chai = convertEigenToChaiVector(_commanded_torque_device0);
 
@@ -462,21 +447,6 @@ int main() {
 			_current_trans_velocity_device1 = convertChaiToEigenVector(_current_trans_velocity_device1_device_chai);
 			_current_rot_velocity_device1 = convertChaiToEigenVector(_current_rot_velocity_device1_device_chai);
 
-			//// Send haptic device and gripper position and velocity to Redis keys ////
-			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[0],_current_position_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[0],_current_rotation_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[0],_current_trans_velocity_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[0],_current_rot_velocity_device0);
-			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[0],to_string(_current_position_gripper_device0));
-			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[0], to_string(_current_gripper_velocity_device0));
-
-			// redis_client.setEigenMatrixJSON(DEVICE_POSITION_KEYS[1],_current_position_device1);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROTATION_KEYS[1],_current_rotation_device1);
-			// redis_client.setEigenMatrixJSON(DEVICE_TRANS_VELOCITY_KEYS[1],_current_trans_velocity_device1);
-			// redis_client.setEigenMatrixJSON(DEVICE_ROT_VELOCITY_KEYS[1],_current_rot_velocity_device1);
-			// redis_client.set(DEVICE_GRIPPER_POSITION_KEYS[1],to_string(_current_position_gripper_device1));
-			// redis_client.set(DEVICE_GRIPPER_VELOCITY_KEYS[1], to_string(_current_gripper_velocity_device1));
-
 			//// Get sensed force and torque from the haptic device ////
 			hapticDevice0->getForce(_sensed_force_device0_chai);
 			hapticDevice0->getTorque(_sensed_torque_device0_chai);
@@ -488,22 +458,10 @@ int main() {
 			_sensed_force_device1 = convertChaiToEigenVector(_sensed_force_device1_chai);
 			_sensed_torque_device1 = convertChaiToEigenVector(_sensed_torque_device1_chai);
 
-			//// Send sensed force to redis keys /////
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[0],_sensed_force_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[0],_sensed_torque_device0);
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_FORCE_KEYS[1],_sensed_force_device1);
-			// redis_client.setEigenMatrixJSON(DEVICE_SENSED_TORQUE_KEYS[1],_sensed_torque_device1);
-
-			//// Read commanded force feedback from Redis ////
-			// _commanded_force_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[0]);
-			// _commanded_torque_device0 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[0]);
-			// _commanded_force_gripper0 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0]));
+			//// Read commanded force feedback  ////
 			_commanded_force_device0_chai = convertEigenToChaiVector(_commanded_force_device0);
 			_commanded_torque_device0_chai = convertEigenToChaiVector(_commanded_torque_device0);
 
-			// _commanded_force_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_FORCE_KEYS[1]);
-			// _commanded_torque_device1 = redis_client.getEigenMatrixJSON(DEVICE_COMMANDED_TORQUE_KEYS[1]);
-			// _commanded_force_gripper1 = stod(redis_client.get(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1]));
 			_commanded_force_device1_chai = convertEigenToChaiVector(_commanded_force_device1);
 			_commanded_torque_device1_chai = convertEigenToChaiVector(_commanded_torque_device1);
 
@@ -531,7 +489,7 @@ int main() {
 		hapticDevice0->close();
 	}
 	else if (Nb_device == 2)
-	{		
+	{
 		//// Reset haptic devices in grabity compensation ////
 		_commanded_force_device0_chai.set(0.0,0.0,0.0);
 		_commanded_torque_device0_chai.set(0.0,0.0,0.0);
@@ -545,8 +503,7 @@ int main() {
 
 		//// Close haptic devices ////
 		hapticDevice0->close();
-		hapticDevice1->close();		
-	}	
+		hapticDevice1->close();
+	}
 	return 0;
 }
-
