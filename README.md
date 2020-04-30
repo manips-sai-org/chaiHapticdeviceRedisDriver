@@ -10,6 +10,13 @@ This project depends on
 * JsonCpp*: JSON serialization [brew, apt-get]
 * Chai3d*: [https://github.com/manips-sai-org/chai3d]
 
+on ubuntu :
+```
+sudo apt-get install cmake redis redis-server libhiredis-dev libjsoncpp-dev
+```
+
+and then go to [https://github.com/manips-sai-org/chai3d] and follow the instructions to install chai3d.
+
 # Build instructions:
 After installing all the dependencies, you can build the driver using cmake in a dedicated folder.
 From the source folder type
