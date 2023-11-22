@@ -17,11 +17,13 @@
 
 #include "chai3d.h"
 #include "redis/RedisClient.h"
+#include "redis/keys/chai_haptic_devices_driver.h"
 #include "timer/LoopTimer.h"
 
 using namespace std;
 using namespace Eigen;
 using namespace chai3d;
+using namespace Sai2Common::ChaiHapticDriverKeys;
 
 bool runloop = true;
 void sighandler(int sig) { runloop = false; }
@@ -30,40 +32,10 @@ namespace {
 
 vector<cGenericHapticDevicePtr> haptic_devices_ptr;
 
-const string REDIS_KEY_PREFIX = "sai2::ChaiHapticDevice::device";
+// for swapping devices
+Vector2d swap_devices = Vector2d(0, 0);
 
-const string MAX_STIFFNESS_KEY_SUFFIX = "::specifications::max_stiffness";
-const string MAX_DAMPING_KEY_SUFFIX = "::specifications::max_damping";
-const string MAX_FORCE_KEY_SUFFIX = "::specifications::max_force";
-const string COMMANDED_FORCE_KEY_SUFFIX = "::actuators::commanded_force";
-const string COMMANDED_TORQUE_KEY_SUFFIX = "::actuators::commanded_torque";
-const string COMMANDED_GRIPPER_FORCE_KEY_SUFFIX =
-	"::actuators::commanded_force_gripper";
-const string POSITION_KEY_SUFFIX = "::sensors::current_position";
-const string ROTATION_KEY_SUFFIX = "::sensors::current_rotation";
-const string GRIPPER_POSITION_KEY_SUFFIX =
-	"::sensors::current_position_gripper";
-const string LINEAR_VELOCITY_KEY_SUFFIX = "::sensors::current_trans_velocity";
-const string ANGULAR_VELOCITY_KEY_SUFFIX = "::sensors::current_rot_velocity";
-const string GRIPPER_VELOCITY_KEY_SUFFIX =
-	"::sensors::current_gripper_velocity";
-const string SENSED_FORCE_KEY_SUFFIX = "::sensors::sensed_force";
-const string SENSED_TORQUE_KEY_SUFFIX = "::sensors::sensed_torque";
-const string USE_GRIPPER_AS_SWITCH_KEY_SUFFIX =
-	"::sensors::use_gripper_as_switch";
-
-string createRedisKey(const string& key_suffix, int device_number) {
-	return REDIS_KEY_PREFIX + to_string(device_number) + key_suffix;
-}
-
-const string HAPTIC_DEVICES_SWAP_KEY = "sai2::ChaiHapticDevice::swapDevices";
-Vector2d swap_devices = Vector2d(0,0);
-
-// Declare variable for haptic device 0
-// Maximum stiffness, damping and force specifications
-// vector<Vector2d> max_stiffnesses;
-// vector<Vector2d> max_dampings;
-// vector<Vector2d> max_forces;
+// Declare variable for haptic devices
 // Set force and torque feedback of the haptic device
 vector<Vector3d> commanded_forces;
 vector<Vector3d> commanded_torques;
@@ -79,8 +51,9 @@ vector<double> gripper_velocities;
 // Sensed force and torque from the haptic device
 vector<Vector3d> sensed_forces;
 vector<Vector3d> sensed_torques;
-
+// Switch state
 vector<int> use_gripper_as_switch;
+vector<int> switch_pressed;
 
 }  // namespace
 
@@ -146,15 +119,20 @@ int main() {
 
 		redis_client.setEigen(
 			createRedisKey(MAX_STIFFNESS_KEY_SUFFIX, i),
-			Vector2d(current_device_info.m_maxLinearStiffness,
-					 current_device_info.m_maxAngularStiffness));
+			Vector3d(current_device_info.m_maxLinearStiffness,
+					 current_device_info.m_maxAngularStiffness,
+					 current_device_info.m_maxGripperLinearStiffness));
 		redis_client.setEigen(
 			createRedisKey(MAX_DAMPING_KEY_SUFFIX, i),
-			Vector2d(current_device_info.m_maxLinearDamping,
-					 current_device_info.m_maxAngularDamping));
+			Vector3d(current_device_info.m_maxLinearDamping,
+					 current_device_info.m_maxAngularDamping,
+					 current_device_info.m_maxGripperAngularDamping));
 		redis_client.setEigen(createRedisKey(MAX_FORCE_KEY_SUFFIX, i),
-							  Vector2d(current_device_info.m_maxLinearForce,
-									   current_device_info.m_maxAngularTorque));
+							  Vector3d(current_device_info.m_maxLinearForce,
+									   current_device_info.m_maxAngularTorque,
+									   current_device_info.m_maxGripperForce));
+		redis_client.setDouble(createRedisKey(MAX_GRIPPER_ANGLE, i),
+							   current_device_info.m_gripperMaxAngleRad);
 
 		// populate state
 		commanded_forces.push_back(Vector3d::Zero());
@@ -169,6 +147,7 @@ int main() {
 		sensed_forces.push_back(Vector3d::Zero());
 		sensed_torques.push_back(Vector3d::Zero());
 		use_gripper_as_switch.push_back(0);
+		switch_pressed.push_back(0);
 
 		// set commanded initial value to 0 in redis database
 		redis_client.setEigen(createRedisKey(COMMANDED_FORCE_KEY_SUFFIX, i),
@@ -180,6 +159,8 @@ int main() {
 			commanded_force_grippers.at(i));
 		redis_client.setInt(createRedisKey(USE_GRIPPER_AS_SWITCH_KEY_SUFFIX, i),
 							use_gripper_as_switch.at(i));
+		redis_client.setInt(createRedisKey(SWITCH_PRESSED_KEY_SUFFIX, i),
+							switch_pressed.at(i));
 	}
 	redis_client.setEigen(HAPTIC_DEVICES_SWAP_KEY, swap_devices);
 
@@ -218,6 +199,8 @@ int main() {
 									sensed_forces.at(i));
 		redis_client.addToSendGroup(createRedisKey(SENSED_TORQUE_KEY_SUFFIX, i),
 									sensed_torques.at(i));
+		redis_client.addToSendGroup(
+			createRedisKey(SWITCH_PRESSED_KEY_SUFFIX, i), switch_pressed.at(i));
 	}
 	redis_client.addToReceiveGroup(HAPTIC_DEVICES_SWAP_KEY, swap_devices);
 
@@ -238,8 +221,10 @@ int main() {
 					swap_devices(0) >= 0 && swap_devices(1) >= 0 &&
 					swap_devices(0) < num_devices &&
 					swap_devices(1) < num_devices) {
-					cout << "swapping devices " << swap_devices(0) << " and " << swap_devices(1) << endl;
-					swap(haptic_devices_ptr.at((int)swap_devices(0)), haptic_devices_ptr.at((int)swap_devices(1)));
+					cout << "swapping devices " << swap_devices(0) << " and "
+						 << swap_devices(1) << endl;
+					swap(haptic_devices_ptr.at((int)swap_devices(0)),
+						 haptic_devices_ptr.at((int)swap_devices(1)));
 				}
 				redis_client.setEigen(HAPTIC_DEVICES_SWAP_KEY, Vector2i(0, 0));
 			}
@@ -250,11 +235,14 @@ int main() {
 					use_gripper_as_switch.at(i));
 
 				// send command forces to haptic devices
+				if (use_gripper_as_switch.at(i)) {
+					commanded_force_grippers.at(i) = 0;
+				}
 				haptic_devices_ptr.at(i)->setForceAndTorqueAndGripperForce(
 					commanded_forces.at(i), commanded_torques.at(i),
 					commanded_force_grippers.at(i));
 
-				// get haptic device and gripper position and velocity
+				// get haptic device position and velocity
 				cVector3d position;
 				cMatrix3d rotation;
 				cVector3d linear_velocity;
@@ -267,8 +255,19 @@ int main() {
 				rotations.at(i) = rotation.eigen();
 				linear_velocities.at(i) = linear_velocity.eigen();
 				angular_velocities.at(i) = angular_velocity.eigen();
-				haptic_devices_ptr.at(i)->getGripperAngleRad(
-					gripper_positions.at(i));
+
+				// get gripper switch/button press
+				bool pressed;
+				haptic_devices_ptr.at(i)->getUserSwitch(0, pressed);
+				switch_pressed.at(i) = pressed ? 1 : 0;
+				gripper_positions.at(i) = 0;
+				gripper_velocities.at(i) = 0;
+				if (!use_gripper_as_switch.at(i)) {
+					haptic_devices_ptr.at(i)->getGripperAngleRad(
+						gripper_positions.at(i));
+					haptic_devices_ptr.at(i)->getGripperAngularVelocity(
+						gripper_velocities.at(i));
+				}
 
 				// get sensed force and torque from the haptic device
 				cVector3d sensed_force;
