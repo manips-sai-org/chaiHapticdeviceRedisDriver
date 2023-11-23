@@ -238,9 +238,14 @@ int main() {
 				if (use_gripper_as_switch.at(i)) {
 					commanded_force_grippers.at(i) = 0;
 				}
-				haptic_devices_ptr.at(i)->setForceAndTorqueAndGripperForce(
-					commanded_forces.at(i), commanded_torques.at(i),
-					commanded_force_grippers.at(i));
+				if (!haptic_devices_ptr.at(i)->setForceAndTorqueAndGripperForce(
+						commanded_forces.at(i), commanded_torques.at(i),
+						commanded_force_grippers.at(i))) {
+					cout << "error sending force to device " << i << endl;
+					cout << "closing the driver" << endl;
+					runloop = false;
+					break;
+				}
 
 				// get haptic device position and velocity
 				cVector3d position;
