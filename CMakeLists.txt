@@ -20,9 +20,9 @@ link_directories(${CHAI3D_LIBRARY_DIRS})
 find_package(Eigen3 QUIET)
 include_directories(${EIGEN3_INCLUDE_DIR})
 
-# include sai2-common
-FIND_PACKAGE(SAI2-COMMON REQUIRED)
-include_directories(${SAI2-COMMON_INCLUDE_DIRS})
+# include sai-common
+FIND_PACKAGE(SAI-COMMON REQUIRED)
+include_directories(${SAI-COMMON_INCLUDE_DIRS})
 
 # BUILD SOURCES AND LIBRARY
 set(SOURCES 
@@ -35,7 +35,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # create libraries list
 set(chai_devices_redis_driver_LIBRARIES 
     ${CHAI3D_LIBRARIES}
-    ${SAI2-COMMON_LIBRARIES}
+    ${SAI-COMMON_LIBRARIES}
 )
 
 include_directories( ${chai_devices_redis_driver_INCLUDE_DIRS} )
