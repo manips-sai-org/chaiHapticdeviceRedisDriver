@@ -1,6 +1,7 @@
 # Description:
 This is a wrapper around chai3d in order to use haptic devices through Redis for easiness of use with SAI.
 The driver supports one or two simultaneous haptic devices, and it has been tested with Force Dimension Omega6, Omega7 and Sigma7 haptic devices.
+The driver should work on Ubuntu and MacOs.
 
 # Dependencies:
 This project depends on 
@@ -26,7 +27,7 @@ redis-server
 * Plug and power the haptic device(s). 
 * From the build folder
 ```
-sudo ./chai_devices_redis_driver <optional_redis_namespace>
+sudo ./chai_devices_redis_driver <optional_redis_namespace_prefix>
 ```
 If you don't want to use sudo, you'll need to give the user permission to read and write on the USB ports.
 
