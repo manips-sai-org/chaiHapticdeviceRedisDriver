@@ -23,7 +23,7 @@
 using namespace std;
 using namespace Eigen;
 using namespace chai3d;
-using namespace Sai2Common::ChaiHapticDriverKeys;
+using namespace SaiCommon::ChaiHapticDriverKeys;
 
 bool runloop = true;
 void sighandler(int sig) { runloop = false; }
@@ -57,14 +57,19 @@ vector<int> switch_pressed;
 
 }  // namespace
 
-int main() {
+int main(int argc, char** argv) {
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
 	signal(SIGTERM, &sighandler);
 	signal(SIGINT, &sighandler);
 
+	string redis_prefix = "sai";
+	if (argc > 1) {
+		redis_prefix = argv[1];
+	}
+
 	// start redis client
-	auto redis_client = Sai2Common::RedisClient();
+	auto redis_client = SaiCommon::RedisClient(redis_prefix);
 	redis_client.connect();
 
 	// Find and initialize connected haptic devices
@@ -206,8 +211,13 @@ int main() {
 
 	cout << "Initialization finished, starting the driver" << endl;
 
+	for (int i = 0; i < num_devices; ++i) {
+		redis_client.setBool(createRedisKey(DRIVER_RUNNING_KEY_SUFFIX, i),
+							 true);
+	}
+
 	// run driver loop
-	Sai2Common::LoopTimer timer(1000, 1e6);
+	SaiCommon::LoopTimer timer(1000, 1e6);
 	try {
 		while (runloop) {
 			// wait for next scheduled loop
@@ -298,6 +308,8 @@ int main() {
 
 	// at the end, set all forces to 0 and close the devices
 	for (int i = 0; i < num_devices; ++i) {
+		redis_client.setBool(createRedisKey(DRIVER_RUNNING_KEY_SUFFIX, i),
+							 false);
 		redis_client.setEigen(createRedisKey(COMMANDED_FORCE_KEY_SUFFIX, i),
 							  Vector3d::Zero());
 		redis_client.setEigen(createRedisKey(COMMANDED_TORQUE_KEY_SUFFIX, i),
