@@ -28,43 +28,46 @@ using namespace SaiCommon::ChaiHapticDriverKeys;
 bool runloop = true;
 void sighandler(int sig) { runloop = false; }
 
-namespace {
+namespace
+{
 
-vector<cGenericHapticDevicePtr> haptic_devices_ptr;
+	vector<cGenericHapticDevicePtr> haptic_devices_ptr;
 
-// for swapping devices
-Vector2d swap_devices = Vector2d(0, 0);
+	// for swapping devices
+	Vector2d swap_devices = Vector2d(0, 0);
 
-// Declare variable for haptic devices
-// Set force and torque feedback of the haptic device
-vector<Vector3d> commanded_forces;
-vector<Vector3d> commanded_torques;
-vector<double> commanded_force_grippers;
-// Haptic device current position and rotation
-vector<Vector3d> positions;
-vector<Matrix3d> rotations;
-vector<double> gripper_positions;
-// Haptic device current velocity
-vector<Vector3d> linear_velocities;
-vector<Vector3d> angular_velocities;
-vector<double> gripper_velocities;
-// Sensed force and torque from the haptic device
-vector<Vector3d> sensed_forces;
-vector<Vector3d> sensed_torques;
-// Switch state
-vector<int> use_gripper_as_switch;
-vector<int> switch_pressed;
+	// Declare variable for haptic devices
+	// Set force and torque feedback of the haptic device
+	vector<Vector3d> commanded_forces;
+	vector<Vector3d> commanded_torques;
+	vector<double> commanded_force_grippers;
+	// Haptic device current position and rotation
+	vector<Vector3d> positions;
+	vector<Matrix3d> rotations;
+	vector<double> gripper_positions;
+	// Haptic device current velocity
+	vector<Vector3d> linear_velocities;
+	vector<Vector3d> angular_velocities;
+	vector<double> gripper_velocities;
+	// Sensed force and torque from the haptic device
+	vector<Vector3d> sensed_forces;
+	vector<Vector3d> sensed_torques;
+	// Switch state
+	vector<int> use_gripper_as_switch;
+	vector<int> switch_pressed;
 
-}  // namespace
+} // namespace
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
 	// set up signal handler
 	signal(SIGABRT, &sighandler);
 	signal(SIGTERM, &sighandler);
 	signal(SIGINT, &sighandler);
 
-	string redis_prefix = "sai";
-	if (argc > 1) {
+	string redis_prefix = "";
+	if (argc > 1)
+	{
 		redis_prefix = argv[1];
 	}
 
@@ -76,24 +79,30 @@ int main(int argc, char** argv) {
 	auto handler = new cHapticDeviceHandler();
 	const int num_devices = handler->getNumDevices();
 
-	if (num_devices == 0) {
+	if (num_devices == 0)
+	{
 		cout << "No haptic device found." << endl;
 		return 0;
 	}
 	cout << "Found " << num_devices << " device(s) connected" << endl;
 
-	for (int i = 0; i < num_devices; ++i) {
+	for (int i = 0; i < num_devices; ++i)
+	{
 		cGenericHapticDevicePtr current_device_ptr;
 		handler->getDevice(current_device_ptr, i);
-		if (!current_device_ptr->open()) {
-			for (int k = 0; k < i; k++) {
+		if (!current_device_ptr->open())
+		{
+			for (int k = 0; k < i; k++)
+			{
 				haptic_devices_ptr[k]->close();
 			}
 			cout << "could not open device " << i << endl;
 			return 0;
 		}
-		if (!current_device_ptr->calibrate()) {
-			for (int k = 0; k < i; k++) {
+		if (!current_device_ptr->calibrate())
+		{
+			for (int k = 0; k < i; k++)
+			{
 				haptic_devices_ptr[k]->close();
 			}
 			cout << "could not calibrate device. If using Novint Falcon, you "
@@ -109,11 +118,16 @@ int main(int argc, char** argv) {
 		// if sigma 7, tell it explicitely to enable forces
 		cout << "Device " << i << " is a " << current_device_info.m_modelName
 			 << endl;
-		if (current_device_info.m_modelName == "sigma.7") {
-			cDeltaDevice* tmp_device =
-				dynamic_cast<cDeltaDevice*>(current_device_ptr.get());
+		if (current_device_info.m_modelName == "sigma.7")
+		{
+			cDeltaDevice *tmp_device =
+				dynamic_cast<cDeltaDevice *>(current_device_ptr.get());
 			tmp_device->enableForces(true);
 		}
+
+		// get the righthandedness of the device and send it to redis
+		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 1)
+										: redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 0);
 
 		// Send Zero force feedback to the haptic devices
 		current_device_ptr->setForceAndTorqueAndGripperForce(
@@ -170,7 +184,8 @@ int main(int argc, char** argv) {
 	redis_client.setEigen(HAPTIC_DEVICES_SWAP_KEY, swap_devices);
 
 	// prepare redis communications
-	for (int i = 0; i < num_devices; ++i) {
+	for (int i = 0; i < num_devices; ++i)
+	{
 		redis_client.addToReceiveGroup(
 			createRedisKey(COMMANDED_FORCE_KEY_SUFFIX, i),
 			commanded_forces.at(i));
@@ -211,26 +226,31 @@ int main(int argc, char** argv) {
 
 	cout << "Initialization finished, starting the driver" << endl;
 
-	for (int i = 0; i < num_devices; ++i) {
+	for (int i = 0; i < num_devices; ++i)
+	{
 		redis_client.setBool(createRedisKey(DRIVER_RUNNING_KEY_SUFFIX, i),
 							 true);
 	}
 
 	// run driver loop
 	SaiCommon::LoopTimer timer(1000, 1e6);
-	try {
-		while (runloop) {
+	try
+	{
+		while (runloop)
+		{
 			// wait for next scheduled loop
 			timer.waitForNextLoop();
 
 			redis_client.receiveAllFromGroup();
 
-			if (swap_devices(0) != 0 || swap_devices(1) != 0) {
+			if (swap_devices(0) != 0 || swap_devices(1) != 0)
+			{
 				// cout << "swapping devices" << endl;
 				if (swap_devices(0) != swap_devices(1) &&
 					swap_devices(0) >= 0 && swap_devices(1) >= 0 &&
 					swap_devices(0) < num_devices &&
-					swap_devices(1) < num_devices) {
+					swap_devices(1) < num_devices)
+				{
 					cout << "swapping devices " << swap_devices(0) << " and "
 						 << swap_devices(1) << endl;
 					swap(haptic_devices_ptr.at((int)swap_devices(0)),
@@ -239,18 +259,21 @@ int main(int argc, char** argv) {
 				redis_client.setEigen(HAPTIC_DEVICES_SWAP_KEY, Vector2i(0, 0));
 			}
 
-			for (int i = 0; i < num_devices; ++i) {
+			for (int i = 0; i < num_devices; ++i)
+			{
 				// set gripper switch mode
 				haptic_devices_ptr.at(i)->setEnableGripperUserSwitch(
 					use_gripper_as_switch.at(i));
 
 				// send command forces to haptic devices
-				if (use_gripper_as_switch.at(i)) {
+				if (use_gripper_as_switch.at(i))
+				{
 					commanded_force_grippers.at(i) = 0;
 				}
 				if (!haptic_devices_ptr.at(i)->setForceAndTorqueAndGripperForce(
 						commanded_forces.at(i), commanded_torques.at(i),
-						commanded_force_grippers.at(i))) {
+						commanded_force_grippers.at(i)))
+				{
 					cout << "error sending force to device " << i << endl;
 					cout << "closing the driver" << endl;
 					runloop = false;
@@ -277,7 +300,8 @@ int main(int argc, char** argv) {
 				switch_pressed.at(i) = pressed ? 1 : 0;
 				gripper_positions.at(i) = 0;
 				gripper_velocities.at(i) = 0;
-				if (!use_gripper_as_switch.at(i)) {
+				if (!use_gripper_as_switch.at(i))
+				{
 					haptic_devices_ptr.at(i)->getGripperAngleRad(
 						gripper_positions.at(i));
 					haptic_devices_ptr.at(i)->getGripperAngularVelocity(
@@ -295,7 +319,9 @@ int main(int argc, char** argv) {
 
 			redis_client.sendAllFromGroup();
 		}
-	} catch (const std::exception& e) {
+	}
+	catch (const std::exception &e)
+	{
 		std::cout << e.what() << std::endl;
 		runloop = false;
 	}
@@ -307,7 +333,8 @@ int main(int argc, char** argv) {
 	std::cout << "Closing the driver" << std::endl;
 
 	// at the end, set all forces to 0 and close the devices
-	for (int i = 0; i < num_devices; ++i) {
+	for (int i = 0; i < num_devices; ++i)
+	{
 		redis_client.setBool(createRedisKey(DRIVER_RUNNING_KEY_SUFFIX, i),
 							 false);
 		redis_client.setEigen(createRedisKey(COMMANDED_FORCE_KEY_SUFFIX, i),
