@@ -165,12 +165,6 @@ int main(int argc, char **argv)
 		// if sigma 7, tell it explicitely to enable forces
 		cout << "Device " << i << " is a " << current_device_info.m_modelName
 			 << endl;
-		if (current_device_info.m_modelName == "sigma.7")
-		{
-			cDeltaDevice *tmp_device =
-				dynamic_cast<cDeltaDevice *>(current_device_ptr.get());
-			tmp_device->enableForces(true);
-		}
 
 		// publish the handedness reported by chai3d for each device
 		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 1)
@@ -179,6 +173,12 @@ int main(int argc, char **argv)
 		// Send Zero force feedback to the haptic devices
 		current_device_ptr->setForceAndTorqueAndGripperForce(
 			cVector3d(0, 0, 0), cVector3d(0, 0, 0), 0);
+		if (auto *delta_device =
+				dynamic_cast<cDeltaDevice *>(current_device_ptr.get()))
+		{
+			// Keep motors disabled until every device has finished startup.
+			delta_device->enableForces(false);
+		}
 
 		redis_client.setEigen(
 			createRedisKey(MAX_STIFFNESS_KEY_SUFFIX, i),
@@ -274,6 +274,13 @@ int main(int argc, char **argv)
 	{
 		redis_client.setBool(createRedisKey(DRIVER_RUNNING_KEY_SUFFIX, i),
 							 true);
+		if (auto *delta_device =
+				dynamic_cast<cDeltaDevice *>(haptic_devices_ptr.at(i).get()))
+		{
+			delta_device->enableForces(true);
+			haptic_devices_ptr.at(i)->setForceAndTorqueAndGripperForce(
+				cVector3d(0, 0, 0), cVector3d(0, 0, 0), 0);
+		}
 	}
 
 	// run driver loop
