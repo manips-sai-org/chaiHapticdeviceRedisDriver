@@ -32,6 +32,7 @@ namespace
 {
 
 	vector<cGenericHapticDevicePtr> haptic_devices_ptr;
+	const string kIsRightHandedKeySuffix = "specifications::is_right_handed";
 
 	// for swapping devices
 	Vector2d swap_devices = Vector2d(0, 0);
@@ -56,6 +57,53 @@ namespace
 	vector<int> use_gripper_as_switch;
 	vector<int> switch_pressed;
 
+	vector<cGenericHapticDevicePtr> discoverHapticDevices()
+	{
+		vector<cGenericHapticDevicePtr> devices;
+
+#if defined(C_ENABLE_DELTA_DEVICE_SUPPORT)
+		const unsigned int num_delta_devices = cDeltaDevice::getNumDevices();
+		for (unsigned int i = 0; i < num_delta_devices; ++i)
+		{
+			devices.push_back(cDeltaDevice::create(i));
+		}
+#endif
+
+#if defined(C_ENABLE_LEAP_DEVICE_SUPPORT)
+		const unsigned int num_leap_devices = cLeapDevice::getNumDevices();
+		for (unsigned int i = 0; i < num_leap_devices; ++i)
+		{
+			devices.push_back(cLeapDevice::create(i));
+		}
+#endif
+
+#if defined(C_ENABLE_SIXENSE_DEVICE_SUPPORT)
+		const unsigned int num_sixense_devices = cSixenseDevice::getNumDevices();
+		for (unsigned int i = 0; i < num_sixense_devices; ++i)
+		{
+			devices.push_back(cSixenseDevice::create(i));
+		}
+#endif
+
+#if defined(C_ENABLE_PHANTOM_DEVICE_SUPPORT)
+		const unsigned int num_phantom_devices = cPhantomDevice::getNumDevices();
+		for (unsigned int i = 0; i < num_phantom_devices; ++i)
+		{
+			devices.push_back(cPhantomDevice::create(i));
+		}
+#endif
+
+#if defined(C_ENABLE_CUSTOM_DEVICE_SUPPORT)
+		const unsigned int num_custom_devices = cMyCustomDevice::getNumDevices();
+		for (unsigned int i = 0; i < num_custom_devices; ++i)
+		{
+			devices.push_back(cMyCustomDevice::create(i));
+		}
+#endif
+
+		return devices;
+	}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -75,9 +123,10 @@ int main(int argc, char **argv)
 	auto redis_client = SaiCommon::RedisClient(redis_prefix);
 	redis_client.connect();
 
-	// Find and initialize connected haptic devices
-	auto handler = new cHapticDeviceHandler();
-	const int num_devices = handler->getNumDevices();
+	// Bypass cHapticDeviceHandler discovery because it opens and closes
+	// Force Dimension devices again while scanning.
+	haptic_devices_ptr = discoverHapticDevices();
+	const int num_devices = haptic_devices_ptr.size();
 
 	if (num_devices == 0)
 	{
@@ -88,8 +137,7 @@ int main(int argc, char **argv)
 
 	for (int i = 0; i < num_devices; ++i)
 	{
-		cGenericHapticDevicePtr current_device_ptr;
-		handler->getDevice(current_device_ptr, i);
+		auto current_device_ptr = haptic_devices_ptr.at(i);
 		if (!current_device_ptr->open())
 		{
 			for (int k = 0; k < i; k++)
@@ -112,8 +160,8 @@ int main(int argc, char **argv)
 		}
 
 		// get device info
-		cHapticDeviceInfo current_device_info;
-		handler->getDeviceSpecifications(current_device_info, i);
+		const cHapticDeviceInfo current_device_info =
+			current_device_ptr->getSpecifications();
 
 		// if sigma 7, tell it explicitely to enable forces
 		cout << "Device " << i << " is a " << current_device_info.m_modelName
@@ -126,15 +174,12 @@ int main(int argc, char **argv)
 		}
 
 		// get the righthandedness of the device and send it to redis
-		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 1)
-										: redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 0);
+		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(kIsRightHandedKeySuffix, i), 1)
+										: redis_client.setInt(createRedisKey(kIsRightHandedKeySuffix, i), 0);
 
 		// Send Zero force feedback to the haptic devices
 		current_device_ptr->setForceAndTorqueAndGripperForce(
 			cVector3d(0, 0, 0), cVector3d(0, 0, 0), 0);
-
-		// get specifications and send them to redis
-		haptic_devices_ptr.push_back(current_device_ptr);
 
 		redis_client.setEigen(
 			createRedisKey(MAX_STIFFNESS_KEY_SUFFIX, i),
