@@ -32,7 +32,6 @@ namespace
 {
 
 	vector<cGenericHapticDevicePtr> haptic_devices_ptr;
-	const string kIsRightHandedKeySuffix = "specifications::is_right_handed";
 
 	// for swapping devices
 	Vector2d swap_devices = Vector2d(0, 0);
@@ -173,9 +172,9 @@ int main(int argc, char **argv)
 			tmp_device->enableForces(true);
 		}
 
-		// get the righthandedness of the device and send it to redis
-		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(kIsRightHandedKeySuffix, i), 1)
-										: redis_client.setInt(createRedisKey(kIsRightHandedKeySuffix, i), 0);
+		// publish the handedness reported by chai3d for each device
+		current_device_info.m_rightHand ? redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 1)
+										: redis_client.setInt(createRedisKey(IS_RIGHT_HANDED_KEY_SUFFIX, i), 0);
 
 		// Send Zero force feedback to the haptic devices
 		current_device_ptr->setForceAndTorqueAndGripperForce(
